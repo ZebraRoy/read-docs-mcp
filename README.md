@@ -340,25 +340,6 @@ Returns:
 
 - Detailed instructions on setting up documentation files and structure
 
-## Usage in Code
-
-```javascript
-import { McpServer } from "read-docs-mcp";
-
-// Create an MCP server with default settings
-const server = new McpServer();
-
-// Or with custom settings
-const customServer = new McpServer({
-  docsPath: "./documentation",
-  configFile: "my-docs-config.json",
-  moduleConfigFile: "my-module-config.json",
-});
-
-// Start the server
-server.start();
-```
-
 ## Creating Documentation for Read Documentation Mode
 
 You can either manually create the documentation structure or use the Create Documentation Mode to get guidance. Follow these steps to create documentation that can be accessed by the Read Documentation Mode:
