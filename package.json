@@ -1,0 +1,55 @@
+{
+  "name": "read-docs-mcp",
+  "version": "0.1.0",
+  "description": "Read Docs MCP",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZebraRoy/read-docs-mcp.git"
+  },
+  "bin": {
+    "read-docs-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint \"**/*.{js,ts,jsx,tsx}\" --fix",
+    "dev": "pnpm build && node dist/index.js",
+    "build": "tsc",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "modelcontextprotocol",
+    "mcp",
+    "read-docs-mcp"
+  ],
+  "author": "ZebraRoy",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "bugs": {
+    "url": "https://github.com/ZebraRoy/read-docs-mcp/issues"
+  },
+  "homepage": "https://github.com/ZebraRoy/read-docs-mcp#readme",
+  "packageManager": "pnpm@10.7.1",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.2",
+    "binary-extensions": "^3.0.0",
+    "glob": "^11.0.1",
+    "ignore": "^7.0.3",
+    "simple-git": "^3.27.0",
+    "tiktoken": "^1.0.21",
+    "zod": "^3.24.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.25.1",
+    "@stylistic/eslint-plugin": "^4.2.0",
+    "@types/node": "^22.14.1",
+    "eslint": "^9.25.1",
+    "globals": "^16.0.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vitest": "^3.1.2"
+  }
+}
