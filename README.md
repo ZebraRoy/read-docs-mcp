@@ -31,8 +31,19 @@ The MCP supports the following command-line arguments:
   - Default: `main`
 - `--docs-path`: Path to the docs folder
   - Default: `docs`
-- `--auth-token`: Token to use for the git repo
-  - Default: empty
+- `--clone-location`: Path to clone the git repository
+  - Default: {os home directory}/.temp-repo
+
+### Important Note on Git Authentication
+
+This MCP requires direct cloning of the target git repository. You must ensure you have proper access to the repository before using this tool. For private repositories, make sure:
+
+1. Your local machine has the necessary SSH keys configured for SSH URLs
+2. For HTTPS URLs, you've either:
+   - Used a personal access token in the URL
+   - Configured Git credential storage on your machine
+
+Without proper authentication, the MCP will fail to clone private repositories.
 
 ## Setting up in Cursor
 
