@@ -51,10 +51,7 @@ function readModuleConfig(dir: string) {
   return config
 }
 
-let server: McpServer | undefined
-
-// if cloneDir is provided, it means we are running a mcp document server
-if (name && repoPath) {
+async function createReadDocumentServer() {
   const cloneDir = await createSparseCheckout({
     name,
     repoPath,
@@ -75,7 +72,7 @@ if (name && repoPath) {
 
   let moduleList = mainConfig.moduleList
 
-  server = new McpServer({
+  const server = new McpServer({
     name: mcpName,
     description: mcpDescription,
     version: mcpVersion,
@@ -150,10 +147,11 @@ if (name && repoPath) {
       })
     }
   }
+  return server
 }
-else {
-  // else, it means we are running a mcp server that only provides construction instructions
-  server = new McpServer({
+
+function createInstructionsServer() {
+  const server = new McpServer({
     name: "ReadDocs",
     description: "Provide tools to help agents create documents.",
     version: "0.1.0",
@@ -489,12 +487,26 @@ else {
 ` }],
     }
   })
+  return server
 }
+
+function createServer() {
+  if (name && repoPath) {
+    return createReadDocumentServer()
+  }
+  else {
+    // else, it means we are running a mcp server that only provides construction instructions
+    return createInstructionsServer()
+  }
+}
+
+// if cloneDir is provided, it means we are running a mcp document server
 
 async function main() {
   const transport = new StdioServerTransport()
+  const server = await createServer()
   await server?.connect(transport)
-  console.log("ReadDocs MCP server is running on stdio")
+  console.info("ReadDocs MCP server is running on stdio")
 }
 
 main()
