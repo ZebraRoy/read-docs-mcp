@@ -152,8 +152,8 @@ async function createReadDocumentServer() {
 
 function createInstructionsServer() {
   const server = new McpServer({
-    name: "ReadDocs",
-    description: "Provide tools to help agents create documents.",
+    name: "CreateReadDocs",
+    description: "Provide tools to help agents create documents for ReadDocs MCP.",
     version: "0.1.0",
     capabilities: {},
   })
