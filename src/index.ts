@@ -27,17 +27,11 @@ function parseArgs() {
 
 const args = parseArgs()
 
-// args should have:
-// gitRepoPath: string = path to the git repo, can be http or ssh. If not provided, the mcp server will only provide construction instructions.
-// branch: string = branch to read the docs from, default is main
-// docsPath: string = path to the docs folder, default is docs
-// authToken: string = token to use for the git repo, default is empty
-
-const repoPath = args.gitRepoPath
+const repoPath = args["git-repo-path"]
 const name = args.name
-const branch = args.branch || "main"
-const docsPath = args.docsPath || "docs"
-const cloneLocation = args.cloneLocation || undefined
+const branch = args["branch"] || "main"
+const docsPath = args["docs-path"] || "docs"
+const cloneLocation = args["clone-location"] || undefined
 
 function readMainConfig(dir: string) {
   const configPath = path.join(dir, "read-docs-mcp.json")
@@ -506,7 +500,6 @@ async function main() {
   const transport = new StdioServerTransport()
   const server = await createServer()
   await server?.connect(transport)
-  console.info("ReadDocs MCP server is running on stdio")
 }
 
 main()
