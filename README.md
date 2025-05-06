@@ -12,11 +12,20 @@ A Model Control Protocol (MCP) server that enables AI agents to access and under
 - Fallback to package.json for version information
 - Customizable documentation path
 
+## Dual Usage Modes
+
+This MCP server has two distinct usage modes:
+
+1. **Read Documentation Mode** (`read-docs-{name}`): When both `name` and `git-repo-path` are provided, the server functions as a document reader for the specified repository, generating tools to access the documentation.
+
+2. **Create Documentation Mode** (`create-read-docs`): When no repository information is provided, the server functions as a guide for creating documentation structure, providing instructions on how to set up documentation files.
+
 ## Configuration
 
 The MCP supports the following command-line arguments:
 
-- `--git-repo-path`: Path to the git repository (http or ssh)
+- `--name`: Name of the package/library (required for Read Documentation Mode)
+- `--git-repo-path`: Path to the git repository (http or ssh) (required for Read Documentation Mode)
   - If not provided, the MCP server will only provide construction instructions
 - `--branch`: Branch to read the docs from
   - Default: `main`
@@ -29,12 +38,30 @@ The MCP supports the following command-line arguments:
 
 To use this MCP in Cursor, add the following configuration to your Cursor settings:
 
-### Mac/Linux
+### Read Documentation Mode (Mac/Linux)
 
 ```json
 {
   "mcpServers": {
-    "read-docs": {
+    "read-docs-{name}": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName"
+      ]
+    }
+  }
+}
+```
+
+### Create Documentation Mode (Mac/Linux)
+
+```json
+{
+  "mcpServers": {
+    "create-read-docs": {
       "command": "npx",
       "args": ["-y", "read-docs-mcp"]
     }
@@ -42,12 +69,32 @@ To use this MCP in Cursor, add the following configuration to your Cursor settin
 }
 ```
 
-### Windows
+### Read Documentation Mode (Windows)
 
 ```json
 {
   "mcpServers": {
-    "read-docs": {
+    "read-docs-{name}": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName"
+      ]
+    }
+  }
+}
+```
+
+### Create Documentation Mode (Windows)
+
+```json
+{
+  "mcpServers": {
+    "create-read-docs": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "read-docs-mcp"]
     }
@@ -59,27 +106,18 @@ To use this MCP in Cursor, add the following configuration to your Cursor settin
 
 If you want to specify a custom documentation directory:
 
-#### Mac/Linux
-
 ```json
 {
   "mcpServers": {
-    "read-docs": {
+    "read-docs-{name}": {
       "command": "npx",
-      "args": ["-y", "read-docs-mcp", "--docs-path=documentation"]
-    }
-  }
-}
-```
-
-#### Windows
-
-```json
-{
-  "mcpServers": {
-    "read-docs": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "read-docs-mcp", "--docs-path=documentation"]
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName",
+        "--docs-path=documentation"
+      ]
     }
   }
 }
@@ -87,7 +125,7 @@ If you want to specify a custom documentation directory:
 
 ## Documentation Structure
 
-The MCP server expects the following structure:
+The MCP server expects the following structure for Read Documentation Mode:
 
 ```
 repository/
@@ -173,12 +211,34 @@ The following naming patterns are supported for module folders and detail files:
 
 ## Working with Agents
 
-### Example Prompts
+### Using Read Documentation Mode
+
+When you have set up the MCP server with a repository, you can use it to explore documentation:
+
+```
+Using the read-docs-{YourLibName} MCP, I'd like to explore the documentation for {YourLibName}. Can you:
+
+1. Get an overview of the available modules
+2. Show me the list of hooks available
+3. Provide details on a specific hook
+4. Give me an overview of the components module
+```
+
+### Using Create Documentation Mode
+
+When you use the MCP server without a repository, you can ask for help creating documentation:
+
+```
+Using the create-read-docs MCP, I need to create documentation for my library that can be used with read-docs-mcp.
+Can you help me set up the required structure and files?
+```
+
+### Example Prompts for Read Documentation Mode
 
 #### Exploring Package Documentation
 
 ```
-I'd like to explore the documentation for [Package Name]. Can you:
+Using the read-docs-{PackageName} MCP, I'd like to explore the documentation for [Package Name]. Can you:
 
 1. Get an overview of the available modules
 2. Show me the list of hooks available
@@ -191,7 +251,7 @@ I'm particularly interested in understanding how authentication works in this li
 #### Learning How to Use a Component
 
 ```
-I need to implement a form with validation using the [Package Name] library. Please:
+Using the read-docs-{PackageName} MCP, I need to implement a form with validation using the [Package Name] library. Please:
 
 1. Show me the available components
 2. Get details on the Form component
@@ -201,11 +261,23 @@ I need to implement a form with validation using the [Package Name] library. Ple
 If there are any code examples in the documentation, please highlight those.
 ```
 
+### Example Prompts for Create Documentation Mode
+
+```
+Using the create-read-docs MCP, I need to set up documentation for my React component library. Can you help me create the folder structure and necessary configuration files?
+```
+
+```
+Using the create-read-docs MCP, I've started creating documentation for my utility functions. How should I structure the detailed documentation for individual utility functions?
+```
+
 ## Tools
+
+### Read Documentation Mode Tools
 
 The MCP dynamically generates tools based on the documentation structure. For each module in the `moduleList`, up to three tools can be generated:
 
-### get-[module]-list
+#### get-[module]-list
 
 Get a list of all items in the module.
 
@@ -217,7 +289,7 @@ Returns:
 
 - Content of the list file (default: `list.md`)
 
-### get-[module]-details
+#### get-[module]-details
 
 Get details about a specific item in the module.
 
@@ -229,7 +301,7 @@ Returns:
 
 - Content of the details file, named according to the `namingPattern` (default is kebab-case)
 
-### get-[module]-overview
+#### get-[module]-overview
 
 Get an overview of the module.
 
@@ -240,6 +312,22 @@ Parameters:
 Returns:
 
 - Content of the overview file (default: `overview.md`)
+
+### Create Documentation Mode Tools
+
+The MCP provides a single tool to help with creating documentation:
+
+#### get-create-docs-instructions
+
+Get detailed instructions for creating documentation structure.
+
+Parameters:
+
+- None
+
+Returns:
+
+- Detailed instructions on setting up documentation files and structure
 
 ## Usage in Code
 
@@ -260,7 +348,9 @@ const customServer = new McpServer({
 server.start();
 ```
 
-## Creating Documentation
+## Creating Documentation for Read Documentation Mode
+
+You can either manually create the documentation structure or use the Create Documentation Mode to get guidance. Follow these steps to create documentation that can be accessed by the Read Documentation Mode:
 
 ### Step 1: Create the main configuration file
 
