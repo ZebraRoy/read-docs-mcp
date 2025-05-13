@@ -1,6 +1,6 @@
 # read-docs-mcp
 
-A Model Control Protocol (MCP) server that enables AI agents to access and understand package documentation through a structured interface.
+A Model Context Protocol (MCP) server that enables AI agents to access and understand package documentation through a structured interface.
 
 ## Features
 
