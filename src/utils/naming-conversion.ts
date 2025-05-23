@@ -1,5 +1,7 @@
 export function convertToKebabCase(str: string) {
-  return str.replace(/([A-Z])/g, "-$1").toLowerCase()
+  let result = str.replace(/([A-Z])/g, "-$1").toLowerCase()
+  if (result[0] === "-") result = result.slice(1)
+  return result
 }
 
 export function convertToCamelCase(str: string) {
@@ -7,7 +9,9 @@ export function convertToCamelCase(str: string) {
 }
 
 export function convertToSnakeCase(str: string) {
-  return str.replace(/([A-Z])/g, "_$1").toLowerCase()
+  let result = str.replace(/([A-Z])/g, "_$1").toLowerCase()
+  if (result[0] === "_") result = result.slice(1)
+  return result
 }
 
 export function convertToPascalCase(str: string) {
