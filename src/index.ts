@@ -46,6 +46,117 @@ function readModuleConfig(dir: string) {
   return config
 }
 
+// Helper function for fuzzy search
+function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], moduleFolderNamingPattern: string) {
+  const results: Array<{
+    type: "module" | "detail"
+    name: string
+    module?: string
+    score: number
+    matchType: "exact-filename" | "partial-filename" | "exact-content" | "partial-content"
+  }> = []
+
+  const keywordLower = keyword.toLowerCase()
+
+  // Search through each module
+  for (const module of moduleList) {
+    const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+    const moduleDir = path.join(docsDir, moduleFolder)
+
+    if (!fs.existsSync(moduleDir)) continue
+
+    // Get all files in the module directory
+    const files = fs.readdirSync(moduleDir).filter(file =>
+      fs.statSync(path.join(moduleDir, file)).isFile() && file.endsWith(".md"),
+    )
+
+    for (const file of files) {
+      const filePath = path.join(moduleDir, file)
+      const fileName = path.basename(file, ".md")
+      const fileNameLower = fileName.toLowerCase()
+
+      let matchType: "exact-filename" | "partial-filename" | "exact-content" | "partial-content" | null = null
+      let score = 0
+
+      // Check filename matches (highest priority)
+      if (fileNameLower === keywordLower) {
+        matchType = "exact-filename"
+        score = 100
+      }
+      else if (fileNameLower.includes(keywordLower)) {
+        matchType = "partial-filename"
+        score = 80
+      }
+      else {
+        // Check content matches (lower priority)
+        try {
+          const content = fs.readFileSync(filePath, "utf8").toLowerCase()
+          if (content.includes(keyword.toLowerCase())) {
+            if (content.includes(` ${keywordLower} `) || content.includes(`\n${keywordLower}\n`) || content.includes(`"${keywordLower}"`)) {
+              matchType = "exact-content"
+              score = 60
+            }
+            else {
+              matchType = "partial-content"
+              score = 40
+            }
+          }
+        }
+        catch (_error) {
+          // Skip if can't read file
+          continue
+        }
+      }
+
+      if (matchType) {
+        // Determine if it's a module file or detail file
+        const isModuleFile = ["overview", "list"].includes(fileName) || file === "read-module-docs-mcp.json"
+
+        if (isModuleFile) {
+          results.push({
+            type: "module",
+            name: module,
+            score,
+            matchType,
+          })
+        }
+        else {
+          results.push({
+            type: "detail",
+            name: fileName,
+            module: module,
+            score,
+            matchType,
+          })
+        }
+      }
+    }
+  }
+
+  // Sort by score (descending) and then by match type priority
+  const matchTypePriority = {
+    "exact-filename": 4,
+    "partial-filename": 3,
+    "exact-content": 2,
+    "partial-content": 1,
+  }
+
+  results.sort((a, b) => {
+    if (a.score !== b.score) return b.score - a.score
+    return matchTypePriority[b.matchType] - matchTypePriority[a.matchType]
+  })
+
+  // Format results
+  return results.map((result) => {
+    if (result.type === "module") {
+      return `type: module\nname: ${result.name}`
+    }
+    else {
+      return `type: detail\nname: ${result.name}\nmodule: ${result.module}`
+    }
+  }).join("\n\n")
+}
+
 async function createReadDocumentServer() {
   const cloneDir = await createSparseCheckout({
     name,
@@ -182,6 +293,22 @@ async function createReadDocumentServer() {
         content: [{ type: "text", text: details }],
       }
     })
+
+    server.tool("fuzzy-search", "Search for files by keyword with fuzzy matching", {
+      keyword: z.string().describe("The keyword to search for in file names and content"),
+    }, async ({ keyword }) => {
+      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
+
+      if (!searchResults) {
+        return {
+          content: [{ type: "text", text: "No matches found." }],
+        }
+      }
+
+      return {
+        content: [{ type: "text", text: searchResults }],
+      }
+    })
   }
   else {
     // Original approach: create separate tools for each module
@@ -236,6 +363,23 @@ async function createReadDocumentServer() {
         })
       }
     }
+
+    // Add fuzzy search tool for normal mode as well
+    server.tool("fuzzy-search", "Search for files by keyword with fuzzy matching", {
+      keyword: z.string().describe("The keyword to search for in file names and content"),
+    }, async ({ keyword }) => {
+      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
+
+      if (!searchResults) {
+        return {
+          content: [{ type: "text", text: "No matches found." }],
+        }
+      }
+
+      return {
+        content: [{ type: "text", text: searchResults }],
+      }
+    })
   }
   return server
 }
