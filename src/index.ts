@@ -47,16 +47,19 @@ function readModuleConfig(dir: string) {
 }
 
 // Helper function for fuzzy search
-function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], moduleFolderNamingPattern: string) {
+function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], moduleFolderNamingPattern: string, operation: "and" | "or" = "or") {
   const results: Array<{
     type: "module" | "detail"
     name: string
     module?: string
     score: number
     matchType: "exact-filename" | "partial-filename" | "exact-content" | "partial-content"
+    matchedKeywords: string[]
   }> = []
 
-  const keywordLower = keyword.toLowerCase()
+  // Split keywords by space and filter out empty strings
+  const keywordList = keywords.trim().split(/\s+/).filter(k => k.length > 0)
+  const keywordListLower = keywordList.map(k => k.toLowerCase())
 
   // Search through each module
   for (const module of moduleList) {
@@ -77,35 +80,67 @@ function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], mod
 
       let matchType: "exact-filename" | "partial-filename" | "exact-content" | "partial-content" | null = null
       let score = 0
+      let matchedKeywords: string[] = []
 
       // Check filename matches (highest priority)
-      if (fileNameLower === keywordLower) {
-        matchType = "exact-filename"
-        score = 100
-      }
-      else if (fileNameLower.includes(keywordLower)) {
-        matchType = "partial-filename"
-        score = 80
-      }
-      else {
-        // Check content matches (lower priority)
-        try {
-          const content = fs.readFileSync(filePath, "utf8").toLowerCase()
-          if (content.includes(keyword.toLowerCase())) {
-            if (content.includes(` ${keywordLower} `) || content.includes(`\n${keywordLower}\n`) || content.includes(`"${keywordLower}"`)) {
-              matchType = "exact-content"
-              score = 60
-            }
-            else {
-              matchType = "partial-content"
-              score = 40
-            }
-          }
+      const filenameMatches = keywordListLower.filter((keyword) => {
+        if (fileNameLower === keyword) {
+          return true
         }
-        catch (_error) {
-          // Skip if can't read file
-          continue
+        return fileNameLower.includes(keyword)
+      })
+
+      // Check content matches
+      let contentMatches: string[] = []
+      let fileContent = ""
+      try {
+        fileContent = fs.readFileSync(filePath, "utf8").toLowerCase()
+        contentMatches = keywordListLower.filter((keyword) => {
+          return fileContent.includes(keyword)
+        })
+      }
+      catch (_error) {
+        // Skip if can't read file
+        contentMatches = []
+      }
+
+      // Combine all matches
+      const allMatches = [...new Set([...filenameMatches, ...contentMatches])]
+
+      // Apply AND/OR logic
+      const hasMatch = operation === "and"
+        ? allMatches.length === keywordListLower.length
+        : allMatches.length > 0
+
+      if (hasMatch) {
+        // Determine match type and score based on best match
+        if (filenameMatches.some(keyword => fileNameLower === keyword)) {
+          matchType = "exact-filename"
+          score = 100
         }
+        else if (filenameMatches.length > 0) {
+          matchType = "partial-filename"
+          score = 80
+        }
+        else if (contentMatches.some((keyword) => {
+          return fileContent.includes(` ${keyword} `)
+            || fileContent.includes(`\n${keyword}\n`)
+            || fileContent.includes(`"${keyword}"`)
+        })) {
+          matchType = "exact-content"
+          score = 60
+        }
+        else if (contentMatches.length > 0) {
+          matchType = "partial-content"
+          score = 40
+        }
+
+        // Boost score based on number of matched keywords
+        score += (allMatches.length - 1) * 10
+
+        matchedKeywords = allMatches.map(keyword =>
+          keywordList[keywordListLower.indexOf(keyword)],
+        )
       }
 
       if (matchType) {
@@ -118,6 +153,7 @@ function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], mod
             name: module,
             score,
             matchType,
+            matchedKeywords,
           })
         }
         else {
@@ -127,6 +163,7 @@ function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], mod
             module: module,
             score,
             matchType,
+            matchedKeywords,
           })
         }
       }
@@ -148,11 +185,15 @@ function fuzzySearch(keyword: string, docsDir: string, moduleList: string[], mod
 
   // Format results
   return results.map((result) => {
+    const matchedKeywordsStr = result.matchedKeywords.length > 0
+      ? `\nmatched_keywords: ${result.matchedKeywords.join(", ")}`
+      : ""
+
     if (result.type === "module") {
-      return `type: module\nname: ${result.name}`
+      return `type: module\nname: ${result.name}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}`
     }
     else {
-      return `type: detail\nname: ${result.name}\nmodule: ${result.module}`
+      return `type: detail\nname: ${result.name}\nmodule: ${result.module}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}`
     }
   }).join("\n\n")
 }
@@ -295,9 +336,10 @@ async function createReadDocumentServer() {
     })
 
     server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
-      keyword: z.string().describe("The keyword to search for in file names and content"),
-    }, async ({ keyword }) => {
-      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
+      keyword: z.string().describe("The keyword(s) to search for in file names and content. Multiple keywords can be separated by spaces."),
+      operation: z.enum(["and", "or"]).optional().describe("Whether to use AND or OR logic for multiple keywords. Default is 'or'."),
+    }, async ({ keyword, operation = "or" }) => {
+      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern, operation)
 
       if (!searchResults) {
         return {
@@ -366,9 +408,10 @@ async function createReadDocumentServer() {
 
     // Add fuzzy search tool for normal mode as well
     server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
-      keyword: z.string().describe("The keyword to search for in file names and content"),
-    }, async ({ keyword }) => {
-      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
+      keyword: z.string().describe("The keyword(s) to search for in file names and content. Multiple keywords can be separated by spaces."),
+      operation: z.enum(["and", "or"]).optional().describe("Whether to use AND or OR logic for multiple keywords. Default is 'or'."),
+    }, async ({ keyword, operation = "or" }) => {
+      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern, operation)
 
       if (!searchResults) {
         return {
