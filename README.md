@@ -353,13 +353,13 @@ Using the create-read-docs MCP, I've started creating documentation for my utili
 
 ### Read Documentation Mode Tools
 
-The MCP dynamically generates tools based on the documentation structure and operating mode.
+The MCP dynamically generates tools based on the documentation structure and operating mode. All tools are prefixed with the package name to avoid conflicts when multiple read-docs-mcp instances are used.
 
 #### Normal Mode Tools
 
 In normal mode, for each module in the `moduleList`, up to three tools can be generated:
 
-#### get-[module]-list
+#### {name}-get-[module]-list
 
 Get a list of all items in the module.
 
@@ -371,7 +371,7 @@ Returns:
 
 - Content of the list file (default: `list.md`)
 
-#### get-[module]-details
+#### {name}-get-[module]-details
 
 Get details about a specific item in the module.
 
@@ -383,7 +383,7 @@ Returns:
 
 - Content of the details file, named according to the `namingPattern` (default is kebab-case)
 
-#### get-[module]-overview
+#### {name}-get-[module]-overview
 
 Get an overview of the module.
 
@@ -395,7 +395,7 @@ Returns:
 
 - Content of the overview file (default: `overview.md`)
 
-#### fuzzy-search
+#### {name}-fuzzy-search
 
 Search for files by keyword with intelligent prioritization.
 
@@ -430,7 +430,7 @@ module: someModule
 
 In two-step mode, the MCP generates 5 generic tools instead of individual tools for each module:
 
-#### get-overview
+#### {name}-get-overview
 
 Get overview of the project.
 
@@ -442,7 +442,7 @@ Returns:
 
 - Content of the main overview file
 
-#### get-overall-list
+#### {name}-get-overall-list
 
 Get a list of all available modules.
 
@@ -454,7 +454,7 @@ Returns:
 
 - List of all modules available in the documentation
 
-#### get-module-overview
+#### {name}-get-module-overview
 
 Get an overview of a specific module.
 
@@ -466,7 +466,7 @@ Returns:
 
 - Content of the module's overview file
 
-#### get-module-list
+#### {name}-get-module-list
 
 Get a list of items in a specific module.
 
@@ -478,7 +478,7 @@ Returns:
 
 - Content of the module's list file
 
-#### get-module-detail
+#### {name}-get-module-detail
 
 Get details of a specific item in a module.
 
@@ -491,7 +491,7 @@ Returns:
 
 - Content of the item's details file
 
-#### fuzzy-search
+#### {name}-fuzzy-search
 
 Search for files by keyword with intelligent prioritization.
 
@@ -563,6 +563,8 @@ For each module, create a directory and a `read-module-docs-mcp.json` file:
   }
 }
 ```
+
+**Note:** The actual tool names generated will be prefixed with your package name. For example, if your package name is "MyLibrary", the tools will be named `MyLibrary-get-component-list`, `MyLibrary-get-component-details`, etc.
 
 ### Step 3: Create documentation files
 

@@ -188,7 +188,7 @@ async function createReadDocumentServer() {
     },
   })
 
-  server.tool("get-overview", `Get overview of the ${mcpName} project`, {
+  server.tool(`${mcpName}-get-overview`, `Get overview of the ${mcpName} project`, {
   }, async () => {
     const overviewFile = path.join(docsDir, fileName)
     const overview = fs.readFileSync(overviewFile, "utf8")
@@ -204,7 +204,7 @@ async function createReadDocumentServer() {
 
   if (mode === "two-step") {
     // Two-step approach: create generic tools with module as parameter
-    server.tool("get-overall-list", "Get a list of modules available", {
+    server.tool(`${mcpName}-get-overall-list`, "Get a list of modules available", {
     }, async () => {
       const moduleNames = moduleList.join("\n- ")
       return {
@@ -212,7 +212,7 @@ async function createReadDocumentServer() {
       }
     })
 
-    server.tool("get-module-overview", "Get an overview of a specific module", {
+    server.tool(`${mcpName}-get-module-overview`, "Get an overview of a specific module", {
       module: z.string().describe("The name of the module"),
     }, async ({ module }) => {
       const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
@@ -239,7 +239,7 @@ async function createReadDocumentServer() {
       }
     })
 
-    server.tool("get-module-list", "Get a list of items in a specific module", {
+    server.tool(`${mcpName}-get-module-list`, "Get a list of items in a specific module", {
       module: z.string().describe("The name of the module"),
     }, async ({ module }) => {
       const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
@@ -266,7 +266,7 @@ async function createReadDocumentServer() {
       }
     })
 
-    server.tool("get-module-detail", "Get details of a specific item in a module", {
+    server.tool(`${mcpName}-get-module-detail`, "Get details of a specific item in a module", {
       module: z.string().describe("The name of the module"),
       name: z.string().describe("The name of the item to get details for"),
     }, async ({ module, name }) => {
@@ -294,7 +294,7 @@ async function createReadDocumentServer() {
       }
     })
 
-    server.tool("fuzzy-search", "Search for files by keyword with fuzzy matching", {
+    server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
       keyword: z.string().describe("The keyword to search for in file names and content"),
     }, async ({ keyword }) => {
       const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
@@ -323,7 +323,7 @@ async function createReadDocumentServer() {
       const getDetailsConfig = moduleConfig["get-details"]
       const getOverviewConfig = moduleConfig["get-overview"]
       if (getListConfig) {
-        server.tool(getListConfig.name, getListConfig.description, {
+        server.tool(`${mcpName}-${getListConfig.name}`, getListConfig.description, {
         }, async () => {
           const {
             fileName: listFileName = "list.md",
@@ -336,7 +336,7 @@ async function createReadDocumentServer() {
         })
       }
       if (getOverviewConfig) {
-        server.tool(getOverviewConfig.name, getOverviewConfig.description, {
+        server.tool(`${mcpName}-${getOverviewConfig.name}`, getOverviewConfig.description, {
         }, async () => {
           const {
             fileName: overviewFileName = "overview.md",
@@ -349,9 +349,9 @@ async function createReadDocumentServer() {
         })
       }
       if (getDetailsConfig) {
-        server.tool(getDetailsConfig.name, getDetailsConfig.description, {
+        server.tool(`${mcpName}-${getDetailsConfig.name}`, getDetailsConfig.description, {
           name: z.string().describe(getDetailsConfig.paramDescription),
-        }, async ({ name }) => {
+        }, async ({ name }: { name: string }) => {
           const {
             namingPattern = "kebab",
           } = getDetailsConfig
@@ -365,7 +365,7 @@ async function createReadDocumentServer() {
     }
 
     // Add fuzzy search tool for normal mode as well
-    server.tool("fuzzy-search", "Search for files by keyword with fuzzy matching", {
+    server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
       keyword: z.string().describe("The keyword to search for in file names and content"),
     }, async ({ keyword }) => {
       const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern)
