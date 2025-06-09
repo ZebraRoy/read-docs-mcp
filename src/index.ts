@@ -32,6 +32,7 @@ const name = args.name
 const branch = args["branch"] || "main"
 const docsPath = args["docs-path"] || "docs"
 const cloneLocation = args["clone-location"] || undefined
+const mode = args.mode || "normal"
 
 function readMainConfig(dir: string) {
   const configPath = path.join(dir, "read-docs-mcp.json")
@@ -90,55 +91,150 @@ async function createReadDocumentServer() {
     moduleList = fs.readdirSync(docsDir).filter(file => fs.statSync(path.join(docsDir, file)).isDirectory())
   }
 
-  for (const module of moduleList) {
-    // If moduleFolderNamingPattern is set to something other than "original",
-    // convert the module name based on the specified pattern
-    const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+  if (mode === "two-step") {
+    // Two-step approach: create generic tools with module as parameter
+    server.tool("get-overall-list", "Get a list of modules available", {
+    }, async () => {
+      const moduleNames = moduleList.join("\n- ")
+      return {
+        content: [{ type: "text", text: `Available modules:\n- ${moduleNames}` }],
+      }
+    })
 
-    const moduleDir = path.join(docsDir, moduleFolder)
-    const moduleConfig = readModuleConfig(moduleDir)
-    const getListConfig = moduleConfig["get-list"]
-    const getDetailsConfig = moduleConfig["get-details"]
-    const getOverviewConfig = moduleConfig["get-overview"]
-    if (getListConfig) {
-      server.tool(getListConfig.name, getListConfig.description, {
-      }, async () => {
-        const {
-          fileName: listFileName = "list.md",
-        } = getListConfig
-        const listFile = path.join(moduleDir, listFileName)
-        const list = fs.readFileSync(listFile, "utf8")
-        return {
-          content: [{ type: "text", text: list }],
-        }
-      })
-    }
-    if (getOverviewConfig) {
-      server.tool(getOverviewConfig.name, getOverviewConfig.description, {
-      }, async () => {
-        const {
-          fileName: overviewFileName = "overview.md",
-        } = getOverviewConfig
-        const overviewFile = path.join(moduleDir, overviewFileName)
-        const overview = fs.readFileSync(overviewFile, "utf8")
-        return {
-          content: [{ type: "text", text: overview }],
-        }
-      })
-    }
-    if (getDetailsConfig) {
-      server.tool(getDetailsConfig.name, getDetailsConfig.description, {
-        name: z.string().describe(getDetailsConfig.paramDescription),
-      }, async ({ name }) => {
-        const {
-          namingPattern = "kebab",
-        } = getDetailsConfig
-        const detailsFile = path.join(moduleDir, `${convertBaseOnPattern(name, namingPattern)}.md`)
-        const details = fs.readFileSync(detailsFile, "utf8")
-        return {
-          content: [{ type: "text", text: details }],
-        }
-      })
+    server.tool("get-module-overview", "Get an overview of a specific module", {
+      module: z.string().describe("The name of the module"),
+    }, async ({ module }) => {
+      const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+      const moduleDir = path.join(docsDir, moduleFolder)
+
+      if (!fs.existsSync(moduleDir)) {
+        throw new Error(`Module "${module}" not found`)
+      }
+
+      const moduleConfig = readModuleConfig(moduleDir)
+      const getOverviewConfig = moduleConfig["get-overview"]
+
+      if (!getOverviewConfig) {
+        throw new Error(`Overview not available for module "${module}"`)
+      }
+
+      const {
+        fileName: overviewFileName = "overview.md",
+      } = getOverviewConfig
+      const overviewFile = path.join(moduleDir, overviewFileName)
+      const overview = fs.readFileSync(overviewFile, "utf8")
+      return {
+        content: [{ type: "text", text: overview }],
+      }
+    })
+
+    server.tool("get-module-list", "Get a list of items in a specific module", {
+      module: z.string().describe("The name of the module"),
+    }, async ({ module }) => {
+      const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+      const moduleDir = path.join(docsDir, moduleFolder)
+
+      if (!fs.existsSync(moduleDir)) {
+        throw new Error(`Module "${module}" not found`)
+      }
+
+      const moduleConfig = readModuleConfig(moduleDir)
+      const getListConfig = moduleConfig["get-list"]
+
+      if (!getListConfig) {
+        throw new Error(`List not available for module "${module}"`)
+      }
+
+      const {
+        fileName: listFileName = "list.md",
+      } = getListConfig
+      const listFile = path.join(moduleDir, listFileName)
+      const list = fs.readFileSync(listFile, "utf8")
+      return {
+        content: [{ type: "text", text: list }],
+      }
+    })
+
+    server.tool("get-module-detail", "Get details of a specific item in a module", {
+      module: z.string().describe("The name of the module"),
+      name: z.string().describe("The name of the item to get details for"),
+    }, async ({ module, name }) => {
+      const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+      const moduleDir = path.join(docsDir, moduleFolder)
+
+      if (!fs.existsSync(moduleDir)) {
+        throw new Error(`Module "${module}" not found`)
+      }
+
+      const moduleConfig = readModuleConfig(moduleDir)
+      const getDetailsConfig = moduleConfig["get-details"]
+
+      if (!getDetailsConfig) {
+        throw new Error(`Details not available for module "${module}"`)
+      }
+
+      const {
+        namingPattern = "kebab",
+      } = getDetailsConfig
+      const detailsFile = path.join(moduleDir, `${convertBaseOnPattern(name, namingPattern)}.md`)
+      const details = fs.readFileSync(detailsFile, "utf8")
+      return {
+        content: [{ type: "text", text: details }],
+      }
+    })
+  }
+  else {
+    // Original approach: create separate tools for each module
+    for (const module of moduleList) {
+      // If moduleFolderNamingPattern is set to something other than "original",
+      // convert the module name based on the specified pattern
+      const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
+
+      const moduleDir = path.join(docsDir, moduleFolder)
+      const moduleConfig = readModuleConfig(moduleDir)
+      const getListConfig = moduleConfig["get-list"]
+      const getDetailsConfig = moduleConfig["get-details"]
+      const getOverviewConfig = moduleConfig["get-overview"]
+      if (getListConfig) {
+        server.tool(getListConfig.name, getListConfig.description, {
+        }, async () => {
+          const {
+            fileName: listFileName = "list.md",
+          } = getListConfig
+          const listFile = path.join(moduleDir, listFileName)
+          const list = fs.readFileSync(listFile, "utf8")
+          return {
+            content: [{ type: "text", text: list }],
+          }
+        })
+      }
+      if (getOverviewConfig) {
+        server.tool(getOverviewConfig.name, getOverviewConfig.description, {
+        }, async () => {
+          const {
+            fileName: overviewFileName = "overview.md",
+          } = getOverviewConfig
+          const overviewFile = path.join(moduleDir, overviewFileName)
+          const overview = fs.readFileSync(overviewFile, "utf8")
+          return {
+            content: [{ type: "text", text: overview }],
+          }
+        })
+      }
+      if (getDetailsConfig) {
+        server.tool(getDetailsConfig.name, getDetailsConfig.description, {
+          name: z.string().describe(getDetailsConfig.paramDescription),
+        }, async ({ name }) => {
+          const {
+            namingPattern = "kebab",
+          } = getDetailsConfig
+          const detailsFile = path.join(moduleDir, `${convertBaseOnPattern(name, namingPattern)}.md`)
+          const details = fs.readFileSync(detailsFile, "utf8")
+          return {
+            content: [{ type: "text", text: details }],
+          }
+        })
+      }
     }
   }
   return server

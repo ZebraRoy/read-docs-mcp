@@ -33,6 +33,9 @@ The MCP supports the following command-line arguments:
   - Default: `docs`
 - `--clone-location`: Path to clone the git repository
   - Default: {os home directory}/.temp-repo
+- `--mode`: Operating mode for the MCP server
+  - Options: `normal` (default), `two-step`
+  - See [Operating Modes](#operating-modes) section for details
 
 ### Important Note on Git Authentication
 
@@ -44,6 +47,36 @@ This MCP requires direct cloning of the target git repository. You must ensure y
    - Configured Git credential storage on your machine
 
 Without proper authentication, the MCP will fail to clone private repositories.
+
+## Operating Modes
+
+You can specify different modes when running the MCP server using the --mode argument:
+
+### Normal Mode (default)
+
+```bash
+npx -y read-docs-mcp --name=MyDocs --git-repo-path=https://github.com/user/repo
+# or explicitly:
+npx -y read-docs-mcp --name=MyDocs --git-repo-path=https://github.com/user/repo --mode=normal
+```
+
+In normal mode, the server creates individual tools for each module and operation (e.g., get-hooks-list, get-hooks-details, get-components-list, etc.).
+
+### Two-Step Mode
+
+```bash
+npx -y read-docs-mcp --name=MyDocs --git-repo-path=https://github.com/user/repo --mode=two-step
+```
+
+In two-step mode, instead of creating individual tools for each module, the server creates these 5 generic tools:
+
+1. **get-overview** - Get overview of the project (same as normal mode)
+2. **get-overall-list** - Get a list of all available modules
+3. **get-module-overview** - Get overview of a specific module (takes module name as parameter)
+4. **get-module-list** - Get list of items in a specific module (takes module name as parameter)
+5. **get-module-detail** - Get details of a specific item in a module (takes module and item name as parameters)
+
+This approach reduces the total number of tools significantly when you have many modules, making the MCP server more efficient and easier to manage.
 
 ## Setting up in Cursor
 
@@ -128,6 +161,27 @@ If you want to specify a custom documentation directory:
         "--git-repo-path=https://github.com/user/repo",
         "--name=YourLibName",
         "--docs-path=documentation"
+      ]
+    }
+  }
+}
+```
+
+### Two-Step Mode Configuration
+
+To use two-step mode for better efficiency with large documentation sets:
+
+```json
+{
+  "mcpServers": {
+    "read-docs-{name}": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName",
+        "--mode=two-step"
       ]
     }
   }
@@ -286,7 +340,11 @@ Using the create-read-docs MCP, I've started creating documentation for my utili
 
 ### Read Documentation Mode Tools
 
-The MCP dynamically generates tools based on the documentation structure. For each module in the `moduleList`, up to three tools can be generated:
+The MCP dynamically generates tools based on the documentation structure and operating mode.
+
+#### Normal Mode Tools
+
+In normal mode, for each module in the `moduleList`, up to three tools can be generated:
 
 #### get-[module]-list
 
@@ -323,6 +381,71 @@ Parameters:
 Returns:
 
 - Content of the overview file (default: `overview.md`)
+
+#### Two-Step Mode Tools
+
+In two-step mode, the MCP generates 5 generic tools instead of individual tools for each module:
+
+#### get-overview
+
+Get overview of the project.
+
+Parameters:
+
+- None
+
+Returns:
+
+- Content of the main overview file
+
+#### get-overall-list
+
+Get a list of all available modules.
+
+Parameters:
+
+- None
+
+Returns:
+
+- List of all modules available in the documentation
+
+#### get-module-overview
+
+Get an overview of a specific module.
+
+Parameters:
+
+- `module` (string): Name of the module
+
+Returns:
+
+- Content of the module's overview file
+
+#### get-module-list
+
+Get a list of items in a specific module.
+
+Parameters:
+
+- `module` (string): Name of the module
+
+Returns:
+
+- Content of the module's list file
+
+#### get-module-detail
+
+Get details of a specific item in a module.
+
+Parameters:
+
+- `module` (string): Name of the module
+- `name` (string): Name of the item to get details for
+
+Returns:
+
+- Content of the item's details file
 
 ### Create Documentation Mode Tools
 
