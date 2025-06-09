@@ -11,6 +11,7 @@ A Model Context Protocol (MCP) server that enables AI agents to access and under
 - Dynamic tool generation based on configured modules
 - Fallback to package.json for version information
 - Customizable documentation path
+- Fuzzy search capability to find files by keyword with smart prioritization
 
 ## Dual Usage Modes
 
@@ -326,6 +327,18 @@ Using the read-docs-{PackageName} MCP, I need to implement a form with validatio
 If there are any code examples in the documentation, please highlight those.
 ```
 
+#### Finding Documentation with Fuzzy Search
+
+```
+Using the read-docs-{PackageName} MCP, I'm looking for documentation about authentication in the library. Can you:
+
+1. Use fuzzy search to find all files related to "auth"
+2. Based on the search results, get the details for the most relevant authentication documentation
+3. Show me how to implement authentication using the library
+
+The fuzzy search should help us quickly locate the relevant documentation files.
+```
+
 ### Example Prompts for Create Documentation Mode
 
 ```
@@ -381,6 +394,37 @@ Parameters:
 Returns:
 
 - Content of the overview file (default: `overview.md`)
+
+#### fuzzy-search
+
+Search for files by keyword with intelligent prioritization.
+
+Parameters:
+
+- `keyword` (string): The keyword to search for in file names and content
+
+Returns:
+
+- Formatted list of matching files with the following priority:
+  1. Exact match in file name
+  2. Partial match in file name
+  3. Exact match in file content
+  4. Partial match in file content
+
+Results are formatted as:
+
+```
+type: module
+name: someModule
+```
+
+or
+
+```
+type: detail
+name: someDetail
+module: someModule
+```
 
 #### Two-Step Mode Tools
 
@@ -446,6 +490,18 @@ Parameters:
 Returns:
 
 - Content of the item's details file
+
+#### fuzzy-search
+
+Search for files by keyword with intelligent prioritization.
+
+Parameters:
+
+- `keyword` (string): The keyword to search for in file names and content
+
+Returns:
+
+- Formatted list of matching files with the same priority system and format as described in the Normal Mode section above
 
 ### Create Documentation Mode Tools
 
