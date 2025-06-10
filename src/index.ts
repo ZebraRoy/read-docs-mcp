@@ -198,6 +198,37 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
   }).join("\n\n")
 }
 
+function addFuzzySearchTool({
+  server,
+  mcpName,
+  docsDir,
+  moduleList,
+  moduleFolderNamingPattern,
+}: {
+  server: McpServer
+  mcpName: string
+  docsDir: string
+  moduleList: string[]
+  moduleFolderNamingPattern: "kebab" | "camel" | "snake" | "pascal" | "original"
+}) {
+  server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching. Please use the exact keyword if possible, only split the keyword if exact match is not found.", {
+    keyword: z.string().describe("The keyword(s) to search for in file names and content. Multiple keywords can be separated by spaces."),
+    operation: z.enum(["and", "or"]).optional().describe("Whether to use AND or OR logic for multiple keywords. Default is 'or'."),
+  }, async ({ keyword, operation = "or" }) => {
+    const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern, operation)
+
+    if (!searchResults) {
+      return {
+        content: [{ type: "text", text: "No matches found." }],
+      }
+    }
+
+    return {
+      content: [{ type: "text", text: searchResults }],
+    }
+  })
+}
+
 async function createReadDocumentServer() {
   const cloneDir = await createSparseCheckout({
     name,
@@ -335,21 +366,12 @@ async function createReadDocumentServer() {
       }
     })
 
-    server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
-      keyword: z.string().describe("The keyword(s) to search for in file names and content. Multiple keywords can be separated by spaces."),
-      operation: z.enum(["and", "or"]).optional().describe("Whether to use AND or OR logic for multiple keywords. Default is 'or'."),
-    }, async ({ keyword, operation = "or" }) => {
-      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern, operation)
-
-      if (!searchResults) {
-        return {
-          content: [{ type: "text", text: "No matches found." }],
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: searchResults }],
-      }
+    addFuzzySearchTool({
+      server,
+      mcpName,
+      docsDir,
+      moduleList,
+      moduleFolderNamingPattern,
     })
   }
   else {
@@ -406,22 +428,12 @@ async function createReadDocumentServer() {
       }
     }
 
-    // Add fuzzy search tool for normal mode as well
-    server.tool(`${mcpName}-fuzzy-search`, "Search for files by keyword with fuzzy matching", {
-      keyword: z.string().describe("The keyword(s) to search for in file names and content. Multiple keywords can be separated by spaces."),
-      operation: z.enum(["and", "or"]).optional().describe("Whether to use AND or OR logic for multiple keywords. Default is 'or'."),
-    }, async ({ keyword, operation = "or" }) => {
-      const searchResults = fuzzySearch(keyword, docsDir, moduleList, moduleFolderNamingPattern, operation)
-
-      if (!searchResults) {
-        return {
-          content: [{ type: "text", text: "No matches found." }],
-        }
-      }
-
-      return {
-        content: [{ type: "text", text: searchResults }],
-      }
+    addFuzzySearchTool({
+      server,
+      mcpName,
+      docsDir,
+      moduleList,
+      moduleFolderNamingPattern,
     })
   }
   return server
