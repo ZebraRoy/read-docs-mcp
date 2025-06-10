@@ -33,6 +33,7 @@ const branch = args["branch"] || "main"
 const docsPath = args["docs-path"] || "docs"
 const cloneLocation = args["clone-location"] || undefined
 const mode = args.mode || "normal"
+const personalToken = args["personal-token"] || undefined
 
 function readMainConfig(dir: string) {
   const configPath = path.join(dir, "read-docs-mcp.json")
@@ -236,6 +237,7 @@ async function createReadDocumentServer() {
     branch,
     docsPath,
     cloneLocation,
+    personalToken,
   })
   const docsDir = path.join(cloneDir, docsPath)
   const mainConfig = readMainConfig(docsDir)

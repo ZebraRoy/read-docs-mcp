@@ -28,6 +28,9 @@ The MCP supports the following command-line arguments:
 - `--name`: Name of the package/library (required for Read Documentation Mode)
 - `--git-repo-path`: Path to the git repository (http or ssh) (required for Read Documentation Mode)
   - If not provided, the MCP server will only provide construction instructions
+- `--personal-token`: Personal access token for git authentication (optional)
+  - Recommended for private repositories
+  - Supports GitHub, GitLab, Bitbucket, and generic Git hosting
 - `--branch`: Branch to read the docs from
   - Default: `main`
 - `--docs-path`: Path to the docs folder
@@ -40,12 +43,36 @@ The MCP supports the following command-line arguments:
 
 ### Important Note on Git Authentication
 
-This MCP requires direct cloning of the target git repository. You must ensure you have proper access to the repository before using this tool. For private repositories, make sure:
+This MCP requires direct cloning of the target git repository. You must ensure you have proper access to the repository before using this tool. For private repositories, you have several authentication options:
 
-1. Your local machine has the necessary SSH keys configured for SSH URLs
-2. For HTTPS URLs, you've either:
-   - Used a personal access token in the URL
-   - Configured Git credential storage on your machine
+1. **Using Personal Access Token (Recommended)**: Pass your personal access token using the `--personal-token` argument. This is the most reliable method and works with all major Git hosting providers.
+2. **SSH Keys**: Configure SSH keys on your local machine for SSH URLs
+3. **Git Credential Storage**: Configure Git credential storage on your machine for HTTPS URLs
+
+**Using Personal Access Token:**
+
+```bash
+# With HTTPS URL
+npx -y read-docs-mcp --name=MyDocs --git-repo-path=https://github.com/user/private-repo --personal-token=your_personal_access_token_here
+
+# With SSH URL (automatically converted to HTTPS)
+npx -y read-docs-mcp --name=MyDocs --git-repo-path=git@gitlab.service-hub.tech:frontend/private-repo.git --personal-token=your_personal_access_token_here
+```
+
+The MCP supports personal access tokens for both HTTPS and SSH URLs:
+
+**HTTPS URLs:**
+
+- **GitHub**: Uses the token directly in the HTTPS URL
+- **GitLab** (including self-hosted): Uses OAuth2 format with the token
+- **Bitbucket**: Uses token-auth format
+- **Generic Git Hosting**: Uses OAuth2 format (GitLab-style)
+
+**SSH URLs:**
+When a personal token is provided, SSH URLs are automatically converted to HTTPS with proper authentication:
+
+- **SSH**: `git@gitlab.service-hub.tech:frontend/repo.git`
+- **HTTPS**: `https://oauth2:token@gitlab.service-hub.tech/frontend/repo.git`
 
 Without proper authentication, the MCP will fail to clone private repositories.
 
@@ -188,6 +215,50 @@ To use two-step mode for better efficiency with large documentation sets:
   }
 }
 ```
+
+### Private Repository with Personal Token
+
+To access private repositories using a personal access token:
+
+```json
+{
+  "mcpServers": {
+    "read-docs-{name}": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/private-repo",
+        "--name=YourLibName",
+        "--personal-token=your_personal_access_token_here"
+      ]
+    }
+  }
+}
+```
+
+### Self-Hosted GitLab with SSH URL
+
+For self-hosted GitLab instances using SSH URLs:
+
+```json
+{
+  "mcpServers": {
+    "read-docs-{name}": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=git@gitlab.some-host.com:some-group/your-repo.git",
+        "--name=YourLibName",
+        "--personal-token=your_gitlab_access_token_here"
+      ]
+    }
+  }
+}
+```
+
+**Security Note**: Store your personal access token securely. Consider using environment variables instead of hardcoding the token in your configuration.
 
 ## Documentation Structure
 
