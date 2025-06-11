@@ -56,6 +56,7 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
     score: number
     matchType: "exact-filename" | "partial-filename" | "exact-content" | "partial-content"
     matchedKeywords: string[]
+    contentMatches?: { keyword: string, lines: number[] }[]
   }> = []
 
   // Split keywords by space and filter out empty strings
@@ -94,15 +95,38 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
       // Check content matches
       let contentMatches: string[] = []
       let fileContent = ""
+      let fileContentLower = ""
+      let contentMatchDetails: { keyword: string, lines: number[] }[] = []
       try {
-        fileContent = fs.readFileSync(filePath, "utf8").toLowerCase()
+        fileContent = fs.readFileSync(filePath, "utf8")
+        const fileLines = fileContent.split("\n")
+        fileContentLower = fileContent.toLowerCase()
+
         contentMatches = keywordListLower.filter((keyword) => {
-          return fileContent.includes(keyword)
+          if (fileContentLower.includes(keyword)) {
+            // Find line numbers where this keyword appears
+            const matchingLines: number[] = []
+            fileLines.forEach((line, index) => {
+              if (line.toLowerCase().includes(keyword)) {
+                matchingLines.push(index + 1) // 1-indexed line numbers
+              }
+            })
+
+            if (matchingLines.length > 0) {
+              contentMatchDetails.push({
+                keyword: keywordList[keywordListLower.indexOf(keyword)],
+                lines: matchingLines,
+              })
+              return true
+            }
+          }
+          return false
         })
       }
       catch (_error) {
         // Skip if can't read file
         contentMatches = []
+        contentMatchDetails = []
       }
 
       // Combine all matches
@@ -124,9 +148,9 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
           score = 80
         }
         else if (contentMatches.some((keyword) => {
-          return fileContent.includes(` ${keyword} `)
-            || fileContent.includes(`\n${keyword}\n`)
-            || fileContent.includes(`"${keyword}"`)
+          return fileContentLower.includes(` ${keyword} `)
+            || fileContentLower.includes(`\n${keyword}\n`)
+            || fileContentLower.includes(`"${keyword}"`)
         })) {
           matchType = "exact-content"
           score = 60
@@ -155,6 +179,7 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
             score,
             matchType,
             matchedKeywords,
+            contentMatches: contentMatchDetails.length > 0 ? contentMatchDetails : undefined,
           })
         }
         else {
@@ -165,6 +190,7 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
             score,
             matchType,
             matchedKeywords,
+            contentMatches: contentMatchDetails.length > 0 ? contentMatchDetails : undefined,
           })
         }
       }
@@ -190,11 +216,19 @@ function fuzzySearch(keywords: string, docsDir: string, moduleList: string[], mo
       ? `\nmatched_keywords: ${result.matchedKeywords.join(", ")}`
       : ""
 
+    let contentMatchesStr = ""
+    if (result.contentMatches && result.contentMatches.length > 0) {
+      const contentDetails = result.contentMatches.map(match =>
+        `${match.keyword} (lines: ${match.lines.join(", ")})`,
+      ).join("; ")
+      contentMatchesStr = `\ncontent_matches: ${contentDetails}`
+    }
+
     if (result.type === "module") {
-      return `type: module\nname: ${result.name}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}`
+      return `type: module\nname: ${result.name}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}${contentMatchesStr}`
     }
     else {
-      return `type: detail\nname: ${result.name}\nmodule: ${result.module}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}`
+      return `type: detail\nname: ${result.name}\nmodule: ${result.module}\nscore: ${result.score}\nmatch_type: ${result.matchType}${matchedKeywordsStr}${contentMatchesStr}`
     }
   }).join("\n\n")
 }
@@ -343,7 +377,9 @@ async function createReadDocumentServer() {
     server.tool(`${mcpName}-get-module-detail`, "Get details of a specific item in a module", {
       module: z.string().describe("The name of the module"),
       name: z.string().describe("The name of the item to get details for"),
-    }, async ({ module, name }) => {
+      line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you're retrieving many files and only need to see a few lines of each file."),
+      range: z.number().optional().describe("Number of lines before and after the target line to include (default: 2)"),
+    }, async ({ module, name, line, range = 2 }) => {
       const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
       const moduleDir = path.join(docsDir, moduleFolder)
 
@@ -363,6 +399,37 @@ async function createReadDocumentServer() {
       } = getDetailsConfig
       const detailsFile = path.join(moduleDir, `${convertBaseOnPattern(name, namingPattern)}.md`)
       const details = fs.readFileSync(detailsFile, "utf8")
+
+      // If line number is specified, extract the specific lines
+      if (line !== undefined) {
+        const lines = details.split("\n")
+        const totalLines = lines.length
+
+        // Ensure line is within bounds (1-indexed)
+        if (line < 1 || line > totalLines) {
+          throw new Error(`Line ${line} is out of bounds. File has ${totalLines} lines.`)
+        }
+
+        // Calculate start and end indices (convert to 0-indexed)
+        const startLine = Math.max(0, line - 1 - range)
+        const endLine = Math.min(totalLines - 1, line - 1 + range)
+
+        // Extract the specified range of lines
+        const extractedLines = lines.slice(startLine, endLine + 1)
+
+        // Add line numbers for context
+        const numberedLines = extractedLines.map((lineContent, index) => {
+          const lineNumber = startLine + index + 1
+          return `${lineNumber.toString().padStart(3, " ")}: ${lineContent}`
+        })
+
+        const result = `Lines ${startLine + 1}-${endLine + 1} of ${totalLines}:\n\n${numberedLines.join("\n")}`
+
+        return {
+          content: [{ type: "text", text: result }],
+        }
+      }
+
       return {
         content: [{ type: "text", text: details }],
       }
@@ -417,12 +484,45 @@ async function createReadDocumentServer() {
       if (getDetailsConfig) {
         server.tool(`${mcpName}-${getDetailsConfig.name}`, getDetailsConfig.description, {
           name: z.string().describe(getDetailsConfig.paramDescription),
-        }, async ({ name }: { name: string }) => {
+          line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you're retrieving many files and only need to see a few lines of each file."),
+          range: z.number().optional().describe("Number of lines before and after the target line to include (default: 2)"),
+        }, async ({ name, line, range = 2 }: { name: string, line?: number, range?: number }) => {
           const {
             namingPattern = "kebab",
           } = getDetailsConfig
           const detailsFile = path.join(moduleDir, `${convertBaseOnPattern(name, namingPattern)}.md`)
           const details = fs.readFileSync(detailsFile, "utf8")
+
+          // If line number is specified, extract the specific lines
+          if (line !== undefined) {
+            const lines = details.split("\n")
+            const totalLines = lines.length
+
+            // Ensure line is within bounds (1-indexed)
+            if (line < 1 || line > totalLines) {
+              throw new Error(`Line ${line} is out of bounds. File has ${totalLines} lines.`)
+            }
+
+            // Calculate start and end indices (convert to 0-indexed)
+            const startLine = Math.max(0, line - 1 - range)
+            const endLine = Math.min(totalLines - 1, line - 1 + range)
+
+            // Extract the specified range of lines
+            const extractedLines = lines.slice(startLine, endLine + 1)
+
+            // Add line numbers for context
+            const numberedLines = extractedLines.map((lineContent, index) => {
+              const lineNumber = startLine + index + 1
+              return `${lineNumber.toString().padStart(3, " ")}: ${lineContent}`
+            })
+
+            const result = `Lines ${startLine + 1}-${endLine + 1} of ${totalLines}:\n\n${numberedLines.join("\n")}`
+
+            return {
+              content: [{ type: "text", text: result }],
+            }
+          }
+
           return {
             content: [{ type: "text", text: details }],
           }
