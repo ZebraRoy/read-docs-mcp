@@ -377,9 +377,9 @@ async function createReadDocumentServer() {
     server.tool(`${mcpName}-get-module-detail`, "Get details of a specific item in a module", {
       module: z.string().describe("The name of the module"),
       name: z.string().describe("The name of the item to get details for"),
-      line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you're retrieving many files and only need to see a few lines of each file."),
-      range: z.number().optional().describe("Number of lines before and after the target line to include (default: 2)"),
-    }, async ({ module, name, line, range = 2 }) => {
+      line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you only need to see a few lines of the file, often used when you want to find all files that contain a specific keyword."),
+      range: z.number().optional().describe("Number of lines before and after the target line to include (default: 3). Increase this number if you want to see more context."),
+    }, async ({ module, name, line, range = 3 }) => {
       const moduleFolder = convertBaseOnPattern(module, moduleFolderNamingPattern as "kebab" | "camel" | "snake" | "pascal" | "original")
       const moduleDir = path.join(docsDir, moduleFolder)
 
@@ -484,9 +484,9 @@ async function createReadDocumentServer() {
       if (getDetailsConfig) {
         server.tool(`${mcpName}-${getDetailsConfig.name}`, getDetailsConfig.description, {
           name: z.string().describe(getDetailsConfig.paramDescription),
-          line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you're retrieving many files and only need to see a few lines of each file."),
-          range: z.number().optional().describe("Number of lines before and after the target line to include (default: 2)"),
-        }, async ({ name, line, range = 2 }: { name: string, line?: number, range?: number }) => {
+          line: z.number().optional().describe("Specific line number to retrieve (1-indexed). Only pass this parameter if you only need to see a few lines of the file, often used when you want to find all files that contain a specific keyword."),
+          range: z.number().optional().describe("Number of lines before and after the target line to include (default: 3). Increase this number if you want to see more context."),
+        }, async ({ name, line, range = 3 }: { name: string, line?: number, range?: number }) => {
           const {
             namingPattern = "kebab",
           } = getDetailsConfig
