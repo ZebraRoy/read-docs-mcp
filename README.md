@@ -40,6 +40,10 @@ The MCP supports the following command-line arguments:
 - `--mode`: Operating mode for the MCP server
   - Options: `normal` (default), `two-step`
   - See [Operating Modes](#operating-modes) section for details
+- `--include-src`: Include source code reading capability (optional)
+  - Set to `true` to enable reading source files from the repository
+  - Default: `false`
+  - When enabled, adds a tool to read source code files for additional implementation details
 
 ### Important Note on Git Authentication
 
@@ -128,6 +132,25 @@ To use this MCP in Cursor, add the following configuration to your Cursor settin
 }
 ```
 
+### Read Documentation Mode with Source Access (Mac/Linux)
+
+```json
+{
+  "mcpServers": {
+    "read-docs-{name}": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName",
+        "--include-src=true"
+      ]
+    }
+  }
+}
+```
+
 ### Create Documentation Mode (Mac/Linux)
 
 ```json
@@ -155,6 +178,27 @@ To use this MCP in Cursor, add the following configuration to your Cursor settin
         "read-docs-mcp",
         "--git-repo-path=https://github.com/user/repo",
         "--name=YourLibName"
+      ]
+    }
+  }
+}
+```
+
+### Read Documentation Mode with Source Access (Windows)
+
+```json
+{
+  "mcpServers": {
+    "read-docs-{name}": {
+      "command": "cmd",
+      "args": [
+        "/c",
+        "npx",
+        "-y",
+        "read-docs-mcp",
+        "--git-repo-path=https://github.com/user/repo",
+        "--name=YourLibName",
+        "--include-src=true"
       ]
     }
   }
@@ -410,6 +454,18 @@ Using the read-docs-{PackageName} MCP, I'm looking for documentation about authe
 The fuzzy search should help us quickly locate the relevant documentation files.
 ```
 
+#### Reading Source Code for Implementation Details
+
+```
+Using the read-docs-{PackageName} MCP (configured with --include-src=true), I need to understand how the useAuth hook is implemented. Please:
+
+1. First, get the documentation details for the useAuth hook
+2. Based on the documentation, read the source code file for useAuth to understand the implementation
+3. Explain how the authentication flow works based on both the documentation and source code
+
+Remember to prioritize the documentation first, then use source code only for additional implementation details.
+```
+
 ### Example Prompts for Create Documentation Mode
 
 ```
@@ -428,7 +484,7 @@ The MCP dynamically generates tools based on the documentation structure and ope
 
 #### Normal Mode Tools
 
-In normal mode, for each module in the `moduleList`, up to three tools can be generated:
+In normal mode, for each module in the `moduleList`, up to three tools can be generated, plus an optional source file reading tool:
 
 #### {name}-get-[module]-list
 
@@ -499,7 +555,7 @@ module: someModule
 
 #### Two-Step Mode Tools
 
-In two-step mode, the MCP generates 5 generic tools instead of individual tools for each module:
+In two-step mode, the MCP generates 5 generic tools instead of individual tools for each module, plus an optional source file reading tool:
 
 #### {name}-get-overview
 
@@ -573,6 +629,20 @@ Parameters:
 Returns:
 
 - Formatted list of matching files with the same priority system and format as described in the Normal Mode section above
+
+#### {name}-read-source-file
+
+Read source code file contents. **Note: This tool is only available when the `--include-src=true` parameter is used during server initialization.**
+
+Parameters:
+
+- `filePath` (string): The relative path to the source file within the project repository (e.g., 'src/components/Button.tsx', 'lib/utils.js')
+
+Returns:
+
+- Content of the source file with security checks to ensure access is restricted to the project directory
+
+**Important:** This tool should only be used after consulting the documentation first. The documentation should be your primary source of information. Only read source code when you need additional implementation details or examples that are not covered in the docs.
 
 ### Create Documentation Mode Tools
 
