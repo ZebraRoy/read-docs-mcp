@@ -18,6 +18,7 @@ export async function createSparseCheckout({
   docsPath = "docs",
   cloneLocation,
   personalToken,
+  includeSrc = false,
 }: {
   name: string
   repoPath: string
@@ -25,6 +26,7 @@ export async function createSparseCheckout({
   docsPath?: string
   cloneLocation?: string
   personalToken?: string
+  includeSrc?: boolean
 }) {
   // Use project-specific clone location if not explicitly provided
   const projectCloneLocation = getCloneDir(name, cloneLocation)
@@ -89,12 +91,15 @@ export async function createSparseCheckout({
     await git.init()
     // Add remote
     await git.addRemote("origin", authenticatedRepoPath)
-    // Enable sparse checkout
-    await git.raw("config", "core.sparseCheckout", "true")
+    
+    if (!includeSrc) {
+      // Enable sparse checkout only if not including source
+      await git.raw("config", "core.sparseCheckout", "true")
 
-    // Write the sparse checkout patterns to the git config file
-    const sparseCheckoutPath = path.join(projectCloneLocation, ".git", "info", "sparse-checkout")
-    fs.writeFileSync(sparseCheckoutPath, docsPath)
+      // Write the sparse checkout patterns to the git config file
+      const sparseCheckoutPath = path.join(projectCloneLocation, ".git", "info", "sparse-checkout")
+      fs.writeFileSync(sparseCheckoutPath, docsPath)
+    }
 
     // Fetch the branch
     await git.fetch("origin", branch)

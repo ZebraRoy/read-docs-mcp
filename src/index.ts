@@ -34,6 +34,7 @@ const docsPath = args["docs-path"] || "docs"
 const cloneLocation = args["clone-location"] || undefined
 const mode = args.mode || "normal"
 const personalToken = args["personal-token"] || undefined
+const includeSrc = args["include-src"] === "true"
 
 function readMainConfig(dir: string) {
   const configPath = path.join(dir, "read-docs-mcp.json")
@@ -272,6 +273,7 @@ async function createReadDocumentServer() {
     docsPath,
     cloneLocation,
     personalToken,
+    includeSrc,
   })
   const docsDir = path.join(cloneDir, docsPath)
   const mainConfig = readMainConfig(docsDir)
@@ -538,6 +540,41 @@ async function createReadDocumentServer() {
       moduleFolderNamingPattern,
     })
   }
+
+  // Add source file reading tool if includeSrc is enabled
+  if (includeSrc) {
+    server.tool(`${mcpName}-read-source-file`, "Read source code file contents. **IMPORTANT: Only use this tool after consulting the documentation first. The documentation should be your primary source of information. Only read source code when you need additional implementation details or examples that are not covered in the docs.**", {
+      filePath: z.string().describe("The relative path to the source file within the project repository (e.g., 'src/components/Button.tsx', 'lib/utils.js')"),
+    }, async ({ filePath }) => {
+      const fullPath = path.join(cloneDir, filePath)
+      
+      // Security check - ensure the file is within the cloned directory
+      const resolvedPath = path.resolve(fullPath)
+      const resolvedCloneDir = path.resolve(cloneDir)
+      
+      if (!resolvedPath.startsWith(resolvedCloneDir)) {
+        throw new Error("Access denied: File path is outside the project directory")
+      }
+      
+      if (!fs.existsSync(fullPath)) {
+        throw new Error(`File not found: ${filePath}`)
+      }
+      
+      if (!fs.statSync(fullPath).isFile()) {
+        throw new Error(`Path is not a file: ${filePath}`)
+      }
+      
+      try {
+        const fileContent = fs.readFileSync(fullPath, "utf8")
+        return {
+          content: [{ type: "text", text: `File: ${filePath}\n\n${fileContent}` }],
+        }
+      } catch (error) {
+        throw new Error(`Failed to read file: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    })
+  }
+
   return server
 }
 
